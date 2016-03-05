@@ -1,12 +1,10 @@
 package org.engenomics.pico;
 
-import java.io.IOException;
+import Utils.Utils;
+
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class Main {
     public static String DIR =
@@ -19,26 +17,16 @@ public class Main {
             "chr22/";
 
     public static String FILE_REL_PATH = //File (in chromosome directory)
-            "practice.vcf";
+            "practice2.vcf";
 
     public static String FILEPATH = REL_PATH + CHROMOSOME_REL_PATH + FILE_REL_PATH; //The entire file put together
-
-
-
-    private static List<Variation> variationsSNP = new ArrayList<>();
-    private static List<Variation> variationsInsertions = new ArrayList<>();
-    private static List<Variation> variationsDeletions = new ArrayList<>();
-
-    private static List<Coords> singleNucleotidePolyphormismsCoords = new ArrayList<>();
-    private static List<Coords> insertionCoords = new ArrayList<>();
-    private static List<Coords> deletionCoords = new ArrayList<>();
 
 
 //    public static int LOGBASE2INTERVAL = 4; // log base 2 of number of data points that are in each transformation complex
 
 //    public static int INTERVAL = (int) Math.pow(2, LOGBASE2INTERVAL);
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         //Set output
 //        PrintStream out = new PrintStream(new FileOutputStream("output.txt"));
 //        System.setOut(out);
@@ -46,7 +34,11 @@ public class Main {
         new Main().run();
     }
 
-    private void run() throws IOException {
+    private void run() throws Exception {
+        List<Variation> variationsSNP = new ArrayList<>();
+        List<Variation> variationsInsertions = new ArrayList<>();
+        List<Variation> variationsDeletions = new ArrayList<>();
+
         List<String> lines = Files.readAllLines(Paths.get(FILEPATH));
 
         for (String line : lines) {
@@ -72,58 +64,45 @@ public class Main {
             variationsSNP.add(currentVariation);
         }
 
-        for (Variation v : variationsInsertions) {
-            System.out.println(v.toString());
-        }
 
+        List<VariationType> variationTypeSNPs = makeFrequencyMap(variationsSNP);
+        List<VariationType> variationTypeInsertions = makeFrequencyMap(variationsInsertions);
+        List<VariationType> variationTypeDeletions = makeFrequencyMap(variationsDeletions);
 
-        /////////////////////////////
-        // DEALING WITH SNPS       //
-        /////////////////////////////
+//        variationTypeSNPs.forEach(System.out::println);
+//        variationTypeInsertions.forEach(System.out::println);
+//        variationTypeDeletions.forEach(System.out::println);
+    }
 
-        //TODO: Do!
+    List<VariationType> makeFrequencyMap(List<Variation> variations) {
+        List<VariationType> variationTypes = new ArrayList<>();
 
+        //Make a frequency map
+        Map<Variation, PositionsFrequencyPair> frequencies = new HashMap<>();
 
+        //This loop adds a variation with frequency 1 if it's not there yet; otherwise, it increments the frequency.
+        for (Variation v : variations) {
+            List<Variation> currentVariations = new ArrayList<>(frequencies.keySet());
 
-
-
-
-        /////////////////////////////
-        // DEALING WITH INSERTIONS //
-        /////////////////////////////
-
-        VariationFreqList variationFreqListOfInsertionVariations = new VariationFreqList();
-
-        for (Variation v : variationsInsertions) {
-            String replacement = v.getReplacement();
-
-            if (variationFreqListOfInsertionVariations.containsVariation(replacement)) { //If it already exists, increment the frequency
-                VariationFreq thisVariationFreq = variationFreqListOfInsertionVariations.get(variationFreqListOfInsertionVariations.indexOfVariation(replacement));
-
-                thisVariationFreq.incrementFreq();
-                thisVariationFreq.getPositions().add(v.getPosition());
-            } else { //Otherwise, add it
-                VariationFreq toAdd = new VariationFreq(v);
-                toAdd.getPositions().add(v.getPosition());
-                variationFreqListOfInsertionVariations.add(toAdd);
+            if (Utils.containsVariation(currentVariations, v.cloneWithoutPosition())) { //Ew, I know, sorry
+                Variation existingVariation = Utils.getVariation(currentVariations, v.cloneWithoutPosition());
+                PositionsFrequencyPair existingPositionsFrequencyPair = frequencies.get(existingVariation);
+                existingPositionsFrequencyPair.addPosition(v.getPosition());
+                existingPositionsFrequencyPair.incrementFrequency();
+                frequencies.put(existingVariation, existingPositionsFrequencyPair);
+            } else {
+                frequencies.put(v, new PositionsFrequencyPair(v.getPosition()));
             }
         }
 
-        Collections.sort(variationFreqListOfInsertionVariations);
-
-        for (int i = 0; i < variationFreqListOfInsertionVariations.size(); i++) {
-            VariationFreq v = variationFreqListOfInsertionVariations.get(i);
-            v.setId(i);
+        //Now, add all of the Variations and their frequencies into a list of VariationTypes
+        for (Variation v : frequencies.keySet()) {
+            variationTypes.add(new VariationType(v, frequencies.get(v).getFrequency(), frequencies.get(v).getPositions()));
         }
 
+        //Sort the types of SNP variations
+        Collections.sort(variationTypes);
 
-        /* SAVE INSERTIONS TO INDEX FILE */
-        for (VariationFreq v : variationFreqListOfInsertionVariations) {
-            System.out.println("SAVING TO FILE: {insertion: [id:" + v.getId() + "], [replacement:" + v.getVariation().getReplacement() + "]}");
-        }
-
-        for (Variation v : variationsDeletions) {
-            System.out.println(v.toString());
-        }
+        return variationTypes;
     }
 }
