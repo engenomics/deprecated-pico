@@ -1,17 +1,21 @@
 package org.engenomics.pico;
 
 import Utils.Utils;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.math3.complex.Complex;
 import org.apache.commons.math3.transform.DftNormalization;
 import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
 
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class Main {
     public static String DIR =
@@ -24,7 +28,7 @@ public class Main {
             "chr22/";
 
     public static String FILE_REL_PATH = //File (in chromosome directory)
-            "practice2.vcf";
+            "practice3.vcf";
 
     public static String FILEPATH = REL_PATH + CHROMOSOME_REL_PATH + FILE_REL_PATH; //The entire file put together
 
@@ -117,7 +121,7 @@ public class Main {
 
         System.out.println("Variations ready. Starting Fourier transform.");
 
-        Complex[] result = fastFourierTransformer.transform(variationIDs, TransformType.FORWARD);
+//        Complex[] result = fastFourierTransformer.transform(variationIDs, TransformType.FORWARD);
 
         System.out.println("Saving results to file...");
 
@@ -137,6 +141,9 @@ public class Main {
 
         // Make a normal VCF file for comparison
         saveListToFile(linesForComparisonVCF);
+
+        // Zip files
+        zipFiles();
 
         System.out.println("Complete!");
     }
@@ -197,7 +204,7 @@ public class Main {
     }
 
     private void saveVariationsToFile(List<VariationType> snps, List<VariationType> insertions, List<VariationType> deletions) throws FileNotFoundException, UnsupportedEncodingException {
-        PrintWriter writer = new PrintWriter("genome22.idlist", "UTF-8");
+        PrintWriter writer = new PrintWriter(".genome22idlist", "UTF-8");
 
 
         int id = 0; //Currently ids go from 0 to the sum of the lists' lengths. TODO: Maybe go from -lengthSum/2 to +lengthSum/2?
@@ -232,27 +239,49 @@ public class Main {
         writer.close();
     }
 
-    private void saveValuesToFile(double[] values) throws FileNotFoundException, UnsupportedEncodingException {
-        PrintWriter writer = new PrintWriter("genome22.pico", "UTF-8");
+    private void saveValuesToFile(double[] values) throws IOException {
+        PrintWriter writer = new PrintWriter(".genome22pico", "UTF-8");
 
-        for (double d : values) {
+        for (int i = 0; i < values.length; i++) {
+            double d = values[i];
             if (d == -1) {
-                writer.print("^");
                 continue;
             }
-            writer.print("<" + (int)d + ">");
+            writer.println(i + " " + (int) d + "");
         }
-
-        writer.close();
     }
 
     private void saveTransformToFile(Complex[] complex) throws FileNotFoundException, UnsupportedEncodingException {
-        PrintWriter writer = new PrintWriter("genome22.pico", "UTF-8");
+        PrintWriter writer = new PrintWriter(".genome22pico", "UTF-8");
 
         for (Complex c : complex) {
             writer.println(Math.round(c.getReal()) + " " + Math.round(c.getImaginary()));
         }
 
         writer.close();
+    }
+
+    private void zipFiles() throws IOException {
+        String file1 = Utils.readFile(".genome22pico");
+        String file2 = Utils.readFile(".genome22idlist");
+
+        final File f = new File("genome22.picz");
+        final ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
+        ZipEntry e1 = new ZipEntry("genome.pico");
+        out.putNextEntry(e1);
+
+        byte[] data1 = file1.getBytes();
+        out.write(data1, 0, data1.length);
+        out.closeEntry();
+
+        ZipEntry e2 = new ZipEntry("data.idlist");
+
+        out.putNextEntry(e2);
+
+        byte[] data2 = file2.getBytes();
+        out.write(data2, 0, data2.length);
+        out.closeEntry();
+
+        out.close();
     }
 }
