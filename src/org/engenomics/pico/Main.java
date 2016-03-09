@@ -28,9 +28,12 @@ public class Main {
             "chr22/";
 
     public static String FILE_REL_PATH = //File (in chromosome directory)
-            "practice3.vcf";
+            "practice2.vcf";
 
     public static String FILEPATH = REL_PATH + CHROMOSOME_REL_PATH + FILE_REL_PATH; //The entire file put together
+
+
+    public static String FILENAME = "genome22";
 
 
     public static int practicalGenomeLength;
@@ -99,53 +102,26 @@ public class Main {
 
         Map<Integer, VariationType> variationTypeIDs = saveVariationsToMap(variationTypeSNPs, variationTypeInsertions, variationTypeDeletions);
 
+        String picoFile = "";
 
-
-        // Do all of the Fourier stuff now
-
-        // Make an array of the variation IDs. The index of the variation in the array is the position; the value is the ID. Thus, nucleotides identical to the reference genome are recorded as -1.
-        double[] variationIDs = new double[Utils.getNextPowerOfTwo(practicalGenomeLength)];
-        Arrays.fill(variationIDs, -1);
-
-        int numberOfIDs = variationTypeIDs.size();
-
-        for (int id = 0; id < numberOfIDs; id++) {
-            VariationType variationType = variationTypeIDs.get(id);
-            List<Integer> positions = variationType.getPositions();
-
-            for (Integer position : positions) {
-                variationIDs[position] = id;
-            }
+        for (int i = 0; i < variationTypeIDs.size(); i++) {
+            List<Integer> positions = variationTypeIDs.get(i).getPositions();
+            picoFile += positions + "\n";
         }
 
 
-        System.out.println("Variations ready. Starting Fourier transform.");
-
-//        Complex[] result = fastFourierTransformer.transform(variationIDs, TransformType.FORWARD);
-
-        System.out.println("Saving results to file...");
 
 
+        /* Save stuff! */
 
+        //Save idlist
+        saveVariationsToFile(variationTypeSNPs, variationTypeInsertions, variationTypeDeletions, FILENAME + ".idlist");
 
-        /* SAVE STUFF TO FILES */
+        //Save pico file
+        save(picoFile, FILENAME + ".pico");
 
-
-        // Save the list of IDs to a file in a standardized format
-        saveVariationsToFile(variationTypeSNPs, variationTypeInsertions, variationTypeDeletions);
-
-        // Save the FFT result
-//        saveTransformToFile(result);
-
-        saveValuesToFile(variationIDs);
-
-        // Make a normal VCF file for comparison
-        saveListToFile(linesForComparisonVCF);
-
-        // Zip files
-        zipFiles();
-
-        System.out.println("Complete!");
+        //Save a comparison vcf file
+        saveLinesToFile(linesForComparisonVCF, FILENAME + "comparisonVCF.txt");
     }
 
     private List<VariationType> makeFrequencyMap(List<Variation> variations) {
@@ -203,8 +179,8 @@ public class Main {
         return variationTypeIDs;
     }
 
-    private void saveVariationsToFile(List<VariationType> snps, List<VariationType> insertions, List<VariationType> deletions) throws FileNotFoundException, UnsupportedEncodingException {
-        PrintWriter writer = new PrintWriter(".genome22idlist", "UTF-8");
+    private void saveVariationsToFile(List<VariationType> snps, List<VariationType> insertions, List<VariationType> deletions, String filename) throws FileNotFoundException, UnsupportedEncodingException {
+        PrintWriter writer = new PrintWriter(filename, "UTF-8");
 
 
         int id = 0; //Currently ids go from 0 to the sum of the lists' lengths. TODO: Maybe go from -lengthSum/2 to +lengthSum/2?
@@ -231,57 +207,21 @@ public class Main {
         writer.close();
     }
 
-    private void saveListToFile(List<String> values) throws FileNotFoundException, UnsupportedEncodingException {
-        PrintWriter writer = new PrintWriter("comparison.vcf", "UTF-8");
+    private void save(String s, String filename) throws FileNotFoundException, UnsupportedEncodingException {
+        PrintWriter writer = new PrintWriter(filename, "UTF-8");
 
-        values.forEach(writer::println);
-
-        writer.close();
-    }
-
-    private void saveValuesToFile(double[] values) throws IOException {
-        PrintWriter writer = new PrintWriter(".genome22pico", "UTF-8");
-
-        for (int i = 0; i < values.length; i++) {
-            double d = values[i];
-            if (d == -1) {
-                continue;
-            }
-            writer.println(i + " " + (int) d + "");
-        }
-    }
-
-    private void saveTransformToFile(Complex[] complex) throws FileNotFoundException, UnsupportedEncodingException {
-        PrintWriter writer = new PrintWriter(".genome22pico", "UTF-8");
-
-        for (Complex c : complex) {
-            writer.println(Math.round(c.getReal()) + " " + Math.round(c.getImaginary()));
-        }
+        writer.print(s);
 
         writer.close();
     }
 
-    private void zipFiles() throws IOException {
-        String file1 = Utils.readFile(".genome22pico");
-        String file2 = Utils.readFile(".genome22idlist");
+    private void saveLinesToFile(List<String> lines, String filename) throws FileNotFoundException, UnsupportedEncodingException {
+        PrintWriter writer = new PrintWriter(filename, "UTF-8");
 
-        final File f = new File("genome22.picz");
-        final ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
-        ZipEntry e1 = new ZipEntry("genome.pico");
-        out.putNextEntry(e1);
+        for (String s : lines) {
+            writer.println(s);
+        }
 
-        byte[] data1 = file1.getBytes();
-        out.write(data1, 0, data1.length);
-        out.closeEntry();
-
-        ZipEntry e2 = new ZipEntry("data.idlist");
-
-        out.putNextEntry(e2);
-
-        byte[] data2 = file2.getBytes();
-        out.write(data2, 0, data2.length);
-        out.closeEntry();
-
-        out.close();
+        writer.close();
     }
 }
