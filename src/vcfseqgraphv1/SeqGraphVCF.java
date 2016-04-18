@@ -1,16 +1,18 @@
-package vcfseqgraphv1;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-
+import java.util.List;
 
 public class SeqGraphVCF {
 
 
-	private String readFilePath = "C:/Adithya/PRIMES/Data/VCF Data/VCF Example.txt";
-	private String outputFilePath = "C:/Adithya/PRIMES/Data/output.txt";
+	private String readFilePath = "C:/Adithya/PRIMES/Data/VCF Data/chr9.txt";
+	private String outputFilePath = "C:/Adithya/PRIMES/Data/outputVCF.txt";
 	
 	private String fileHeader = "WinStart\tWinEnd\tVar";
 	
@@ -19,7 +21,6 @@ public class SeqGraphVCF {
 	
 	public static void main(String [] args) {
 		SeqGraphVCF graph = new SeqGraphVCF();
-		System.out.println(graph.fileHeader);
 		graph.createSequenceGraphVCF(10);
 	}
 	
@@ -85,7 +86,10 @@ public class SeqGraphVCF {
 					int startKMerPosition = Integer.parseInt(wordsArray[1]) - Integer.parseInt(wordsArray[1]) % windowSize;
 					int endKMerPosition = startKMerPosition + windowSize;
 					
-					if(wordsArray[2].contains("rs")) wordsArray[2] = wordsArray[0] + ":" + wordsArray[1] + wordsArray[3] + ">" + wordsArray[4];
+					if(!wordsArray[2].contains(">")) {
+						if(wordsArray[4].contains(",")) wordsArray[4] = wordsArray[4].replace(",", "");	
+						wordsArray[2] = wordsArray[0] + ":" + wordsArray[1] + wordsArray[3] + ">" + wordsArray[4];
+					}
 					line += startKMerPosition + "\t" + "\t" + endKMerPosition + "\t" + wordsArray[2];
 					
 					writeToFile(line);
@@ -103,4 +107,3 @@ public class SeqGraphVCF {
 
 	}
 }
-
